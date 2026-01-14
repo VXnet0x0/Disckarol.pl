@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Profile — DSN</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/informations">Informations</a>
+    <a href="/DisckVirtual.pl">DisckVirtual</a>
+  </nav>
+  <div id="profile"></div>
+  <h3>Informations by this user</h3>
+  <div id="userInfos"></div>
+<script>
+  async function loadProfile(){
+    const path = window.location.pathname; // /profile/:username
+    const username = decodeURIComponent(path.split('/').pop());
+    try {
+      const r = await fetch(`/api/author/${encodeURIComponent(username)}`);
+      const j = await r.json();
+      const p = document.getElementById('profile');
+      p.innerHTML = `<h2>${j.profile.displayName || j.profile.username}</h2>${j.profile.picture?`<img src="${j.profile.picture}" style="width:80px;border-radius:6px"/>`:''}<div>${j.profile.username}</div>`;
+      const out = document.getElementById('userInfos'); out.innerHTML='';
+      (j.informations||[]).forEach(i => {
+        const d = document.createElement('div'); d.className='info'; d.innerHTML = `<b>${i.title}</b><div>${i.content}</div>`; out.appendChild(d);
+      });
+    } catch (e) { console.error(e); }
+  }
+  loadProfile();
+</script>
+</body>
+</html>

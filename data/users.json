@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "id": 1768342264511,
+      "username": "Karol",
+      "passwordHash": "$2b$10$1ig.COLGAVLi3hzkdnGXHOfUo2XuNjl9cgP0nQyvKwN64YGyMG.92"
+    },
+    {
+      "id": 1768344104743,
+      "username": "karol",
+      "passwordHash": "$2b$10$gPUVxD1bvATATOwj.8X1VuaMeqRiAWBV2xleBE9WsHHyNU8xJh9pu"
+    }
+  ]
+}

@@ -1,0 +1,391 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DriveYT — Video & Media Player</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tabs button { padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px 4px 0 0; }
+    .tabs button.active { background: #007bff; color: white; border-color: #007bff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+    .media-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; }
+    .media-card .thumb { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; background: #eee; display: flex; align-items: center; justify-content: center; }
+    .media-card .thumb i { font-size: 48px; color: #999; }
+    .media-card .meta { margin-top: 8px; }
+    .media-card .meta b { display: block; font-size: 14px; word-break: break-word; }
+    .media-card .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .media-card .actions button { padding: 4px 8px; font-size: 12px; cursor: pointer; }
+    .video { display: flex; gap: 12px; margin-bottom: 16px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .video .thumb { width: 160px; height: 90px; object-fit: cover; border-radius: 4px; }
+    .video .meta { flex: 1; }
+    .video .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .video .actions button, .video .actions a { padding: 4px 8px; font-size: 12px; cursor: pointer; text-decoration: none; }
+    #player { margin: 16px 0; }
+    #player video, #player audio, #player iframe { max-width: 100%; border-radius: 8px; }
+    .service-section { margin-top: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+    .service-section h3 { margin-top: 0; }
+    .search-box { display: flex; gap: 8px; margin-bottom: 12px; }
+    .search-box input { flex: 1; padding: 8px; }
+    .search-box button { padding: 8px 16px; }
+    .results-list { max-height: 400px; overflow-y: auto; }
+    .result-item { padding: 8px; border-bottom: 1px solid #eee; }
+    .result-item:last-child { border-bottom: none; }
+    .result-item a { color: #007bff; text-decoration: none; }
+    .result-item a:hover { text-decoration: underline; }
+    .result-item .snippet { font-size: 13px; color: #666; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/menu">Menu</a>
+    <a href="/DisckVirtual.pl">DisckVirtual</a>
+    <a href="/DriveYT.pl">DriveYT</a>
+    <a href="/service">Service</a>
+    <a href="/informations">Informations</a>
+    <span style="flex:1"></span>
+    <div id="auth">
+      <span id="userName">Not logged in</span>
+      <button id="logoutBtn" style="display:none">Logout</button>
+    </div>
+  </nav>
+
+  <h1>DriveYT — Video & Media Player</h1>
+  <div id="authInfo"></div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="youtube">YouTube Search</button>
+    <button class="tab-btn" data-tab="myfiles">My Files</button>
+    <button class="tab-btn" data-tab="services">Web Services</button>
+  </div>
+
+  <!-- YouTube Search Tab -->
+  <div id="youtube" class="tab-content active">
+    <div class="search-box">
+      <input id="q" placeholder="Search YouTube" />
+      <button id="btnSearch"><i class="fa-solid fa-search"></i> Search</button>
+      <button id="btnAI"><i class="fa-solid fa-robot"></i> AI Assist</button>
+    </div>
+    <div id="player"></div>
+    <div id="results"></div>
+    <div id="summary" style="margin-top:12px; background:#f7f7f7; padding:8px; border-radius:6px"></div>
+  </div>
+
+  <!-- My Files Tab (from DisckVirtual) -->
+  <div id="myfiles" class="tab-content">
+    <h3><i class="fa-solid fa-folder"></i> Your Files from DisckVirtual</h3>
+    <p>Play your uploaded media files directly here.</p>
+    <div id="myFilesPlayer"></div>
+    <div id="myFilesList" class="media-grid"></div>
+  </div>
+
+  <!-- Web Services Tab -->
+  <div id="services" class="tab-content">
+    <!-- Wikipedia -->
+    <div class="service-section">
+      <h3><i class="fa-brands fa-wikipedia-w"></i> Wikipedia</h3>
+      <div class="search-box">
+        <input id="wikiQuery" placeholder="Search Wikipedia..." />
+        <select id="wikiLang">
+          <option value="en">English</option>
+          <option value="pl">Polski</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+        </select>
+        <button id="btnWikiSearch"><i class="fa-solid fa-search"></i> Search</button>
+      </div>
+      <div id="wikiResults" class="results-list"></div>
+    </div>
+
+    <!-- MSN / Bing -->
+    <div class="service-section">
+      <h3><i class="fa-brands fa-microsoft"></i> MSN / Bing Search</h3>
+      <div class="search-box">
+        <input id="msnQuery" placeholder="Search MSN/Bing..." />
+        <button id="btnMsnSearch"><i class="fa-solid fa-search"></i> Search</button>
+      </div>
+      <div id="msnResults" class="results-list"></div>
+    </div>
+
+    <!-- Archive.org -->
+    <div class="service-section">
+      <h3><i class="fa-solid fa-archive"></i> Archive.org (Internet Archive)</h3>
+      <div class="search-box">
+        <input id="archiveQuery" placeholder="Search Archive.org..." />
+        <select id="archiveType">
+          <option value="all">All</option>
+          <option value="movies">Movies</option>
+          <option value="audio">Audio</option>
+          <option value="texts">Texts</option>
+          <option value="software">Software</option>
+          <option value="image">Images</option>
+        </select>
+        <button id="btnArchiveSearch"><i class="fa-solid fa-search"></i> Search</button>
+      </div>
+      <div id="archiveResults" class="results-list"></div>
+    </div>
+  </div>
+
+<script>
+  let LOGGED_IN = false;
+  let CURRENT_USER = null;
+
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'myfiles') loadMyFiles();
+    };
+  });
+
+  // Auth check
+  async function me() {
+    try {
+      const r = await fetch('/api/me');
+      const j = await r.json();
+      LOGGED_IN = !!j.username;
+      CURRENT_USER = j.username || null;
+      document.getElementById('authInfo').innerText = LOGGED_IN ? 'Logged in: ' + j.username : 'Not logged in';
+      document.getElementById('userName').innerText = LOGGED_IN ? j.username : 'Not logged in';
+      document.getElementById('logoutBtn').style.display = LOGGED_IN ? 'inline-block' : 'none';
+    } catch (e) { console.error(e); }
+  }
+  me();
+
+  document.getElementById('logoutBtn').onclick = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    me();
+  };
+
+  // YouTube video card
+  function createVideoCard(v, out) {
+    const div = document.createElement('div'); div.className = 'video';
+    const vid = v.videoId || (v.link && v.link.match(/v=([a-zA-Z0-9_-]+)/) ? v.link.match(/v=([a-zA-Z0-9_-]+)/)[1] : null);
+    const thumb = vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : '';
+    div.innerHTML = `<img class="thumb" src="${thumb}" alt="thumb" />
+      <div class="meta">
+        <b><a href="${v.link}" target="_blank" rel="noopener noreferrer">${v.title}</a></b>
+        <div><a href="${v.channelLink}" target="_blank" rel="noopener noreferrer">${v.channelTitle}</a></div>
+        <div>${v.description || ''}</div>
+        <div class="actions">
+          <button class="play" data-video="${vid || ''}"><i class="fa-solid fa-play"></i> Play</button>
+          <a class="open" href="${v.link}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-youtube"></i> On YouTube</a>
+          <a class="open" href="${v.channelLink}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-user"></i> At creator</a>
+        </div>
+      </div>`;
+    out.appendChild(div);
+    const playBtn = div.querySelector('.play');
+    playBtn.onclick = () => {
+      const id = playBtn.getAttribute('data-video') || (v.link && v.link.match(/v=([a-zA-Z0-9_-]+)/) && v.link.match(/v=([a-zA-Z0-9_-]+)/)[1]);
+      if (!id) return alert('No playable video id');
+      const p = document.getElementById('player');
+      p.innerHTML = `<iframe width="100%" height="390" src="https://www.youtube.com/embed/${id}?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      window.scrollTo({ top: p.offsetTop - 10, behavior: 'smooth' });
+    };
+  }
+
+  // YouTube search
+  document.getElementById('btnSearch').onclick = async () => {
+    const q = (document.getElementById('q') || {}).value || '';
+    if (!q) return alert('Query required');
+    try {
+      const r = await fetch(`/api/youtube?q=${encodeURIComponent(q)}`);
+      const j = await r.json();
+      const out = document.getElementById('results'); out.innerHTML = '';
+      document.getElementById('summary').innerHTML = '';
+      if (j.items && j.items.length) j.items.forEach(v => createVideoCard(v, out));
+      else out.innerHTML = '<p>No results found</p>';
+    } catch (e) { console.error(e); alert('Search failed'); }
+  };
+
+  // AI Assist
+  document.getElementById('btnAI').onclick = async () => {
+    if (!LOGGED_IN) return alert('AI requires login');
+    const q = (document.getElementById('q') || {}).value || '';
+    if (!q) return alert('Query required');
+    try {
+      const r = await fetch('/api/ai/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q }) });
+      const j = await r.json();
+      if (j.error) return alert(j.error);
+      document.getElementById('summary').innerHTML = `<h4>AI summary</h4><div>${j.summary}</div>`;
+      const out = document.getElementById('results'); out.innerHTML = '';
+      (j.videos || []).forEach(v => createVideoCard(v, out));
+    } catch (e) { console.error(e); alert('AI query failed'); }
+  };
+
+  // Load files from DisckVirtual
+  async function loadMyFiles() {
+    const list = document.getElementById('myFilesList');
+    list.innerHTML = '<p>Loading...</p>';
+    try {
+      const r = await fetch('/api/files');
+      const files = await r.json();
+      list.innerHTML = '';
+      if (!files || !files.length) {
+        list.innerHTML = '<p>No files uploaded. <a href="/DisckVirtual.pl">Upload files in DisckVirtual</a></p>';
+        return;
+      }
+      files.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'media-card';
+        const ext = (f.filename.split('.').pop() || '').toLowerCase();
+        const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(ext);
+        const isAudio = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(ext);
+        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+        let icon = 'fa-file';
+        if (isVideo) icon = 'fa-video';
+        else if (isAudio) icon = 'fa-music';
+        else if (isImage) icon = 'fa-image';
+
+        card.innerHTML = `
+          <div class="thumb"><i class="fa-solid ${icon}"></i></div>
+          <div class="meta">
+            <b>${f.filename}</b>
+            <div style="font-size:12px;color:#666">${Math.round((f.size || 0) / 1024)} KB</div>
+          </div>
+          <div class="actions">
+            ${isVideo || isAudio ? `<button class="play-file" data-url="${f.url}" data-type="${isVideo ? 'video' : 'audio'}"><i class="fa-solid fa-play"></i> Play</button>` : ''}
+            ${isImage ? `<button class="view-file" data-url="${f.url}"><i class="fa-solid fa-eye"></i> View</button>` : ''}
+            <a href="${f.url}" download><i class="fa-solid fa-download"></i> Download</a>
+          </div>
+        `;
+        list.appendChild(card);
+
+        // Play button handler
+        const playBtn = card.querySelector('.play-file');
+        if (playBtn) {
+          playBtn.onclick = () => {
+            const url = playBtn.dataset.url;
+            const type = playBtn.dataset.type;
+            const player = document.getElementById('myFilesPlayer');
+            if (type === 'video') {
+              player.innerHTML = `<video controls autoplay style="width:100%;max-height:400px"><source src="${url}" /></video>`;
+            } else {
+              player.innerHTML = `<audio controls autoplay style="width:100%"><source src="${url}" /></audio>`;
+            }
+          };
+        }
+
+        // View image handler
+        const viewBtn = card.querySelector('.view-file');
+        if (viewBtn) {
+          viewBtn.onclick = () => {
+            const url = viewBtn.dataset.url;
+            const player = document.getElementById('myFilesPlayer');
+            player.innerHTML = `<img src="${url}" style="max-width:100%;max-height:400px;border-radius:8px" />`;
+          };
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      list.innerHTML = '<p>Error loading files. Please <a href="/">login</a> first.</p>';
+    }
+  }
+
+  // Wikipedia search
+  document.getElementById('btnWikiSearch').onclick = async () => {
+    const q = document.getElementById('wikiQuery').value;
+    const lang = document.getElementById('wikiLang').value;
+    if (!q) return alert('Enter search query');
+    const out = document.getElementById('wikiResults');
+    out.innerHTML = '<p>Searching...</p>';
+    try {
+      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&sources=wikipedia&region=${lang}`);
+      const j = await r.json();
+      out.innerHTML = '';
+      const results = j.wikipedia || [];
+      if (!results.length) {
+        out.innerHTML = '<p>No results found</p>';
+        return;
+      }
+      results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `<a href="${item.link}" target="_blank">${item.title}</a><div class="snippet">${item.snippet}</div>`;
+        out.appendChild(div);
+      });
+    } catch (e) {
+      console.error(e);
+      out.innerHTML = '<p>Search failed</p>';
+    }
+  };
+
+  // MSN/Bing search
+  document.getElementById('btnMsnSearch').onclick = async () => {
+    const q = document.getElementById('msnQuery').value;
+    if (!q) return alert('Enter search query');
+    const out = document.getElementById('msnResults');
+    out.innerHTML = '<p>Searching...</p>';
+    try {
+      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&sources=bing`);
+      const j = await r.json();
+      out.innerHTML = '';
+      const results = j.bing || [];
+      if (!results.length) {
+        out.innerHTML = '<p>No results found (Bing API key may not be configured)</p>';
+        return;
+      }
+      results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `<a href="${item.link}" target="_blank">${item.title}</a><div class="snippet">${item.snippet}</div>`;
+        out.appendChild(div);
+      });
+    } catch (e) {
+      console.error(e);
+      out.innerHTML = '<p>Search failed</p>';
+    }
+  };
+
+  // Archive.org search
+  document.getElementById('btnArchiveSearch').onclick = async () => {
+    const q = document.getElementById('archiveQuery').value;
+    const type = document.getElementById('archiveType').value;
+    if (!q) return alert('Enter search query');
+    const out = document.getElementById('archiveResults');
+    out.innerHTML = '<p>Searching...</p>';
+    try {
+      const r = await fetch(`/api/archive?q=${encodeURIComponent(q)}&mediatype=${type}`);
+      const j = await r.json();
+      out.innerHTML = '';
+      const results = j.items || [];
+      if (!results.length) {
+        out.innerHTML = '<p>No results found</p>';
+        return;
+      }
+      results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `
+          <a href="${item.link}" target="_blank">${item.title}</a>
+          <div class="snippet">${item.description || ''}</div>
+          <div style="margin-top:4px">
+            <a href="${item.link}" target="_blank"><i class="fa-solid fa-external-link"></i> View</a>
+            ${item.downloadLink ? `<a href="${item.downloadLink}" target="_blank" style="margin-left:12px"><i class="fa-solid fa-download"></i> Download</a>` : ''}
+          </div>
+        `;
+        out.appendChild(div);
+      });
+    } catch (e) {
+      console.error(e);
+      out.innerHTML = '<p>Search failed</p>';
+    }
+  };
+
+  // Enter key handlers
+  document.getElementById('q').onkeypress = (e) => { if (e.key === 'Enter') document.getElementById('btnSearch').click(); };
+  document.getElementById('wikiQuery').onkeypress = (e) => { if (e.key === 'Enter') document.getElementById('btnWikiSearch').click(); };
+  document.getElementById('msnQuery').onkeypress = (e) => { if (e.key === 'Enter') document.getElementById('btnMsnSearch').click(); };
+  document.getElementById('archiveQuery').onkeypress = (e) => { if (e.key === 'Enter') document.getElementById('btnArchiveSearch').click(); };
+</script>
+<script src="/auth-modal.js"></script>
+</body>
+</html>

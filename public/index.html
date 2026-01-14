@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DiscKarol.pl — Serwis informacyjny</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1>DiscKarol.pl — Serwis informacyjny</h1>
+  <div id="liveSite" style="margin-bottom:12px; font-size:14px"></div>
+
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/menu">Menu</a>
+    <a href="/service">Service</a>
+    <a href="/informations">Informations</a>
+    <a href="/DisckVirtual.pl">DisckVirtual</a>
+    <a href="#auth">Login</a>
+    <span style="flex:1"></span>
+    <div id="auth">
+      <div id="userBox">
+        <span id="userName">Not logged in</span>
+        <button id="logoutBtn" style="display:none">Logout</button>
+      </div>
+      <div id="loginBox">
+        <input id="loginUser" placeholder="username" />
+        <input id="loginPass" type="password" placeholder="password" />
+        <button id="btnLogin">Login</button>
+        <button id="btnRegister">Register</button>
+      </div>
+      <div id="googleLogin" style="display:inline-block;margin-left:8px"></div>
+      <a href="/login" style="margin-left:12px">Full login page</a>
+    </div>
+  </nav>
+
+  <hr />
+
+  <div id="links">
+    <a href="/service">Service</a> — <a href="/menu">Menu</a> — <a href="/informations">Informations</a> — <a href="/DisckVirtual.pl">DisckVirtual</a>
+  </div>
+
+  <div id="searchBox">
+    <input id="q" placeholder="Search query" style="width:60%" />
+    <input id="region" placeholder="wiki region (en, pl...)" style="width:10%" />
+    <div id="sources" style="margin-top:8px;">
+      <label><input type="checkbox" value="wikipedia" checked /> Wikipedia</label>
+      <label style="margin-left:8px;"><input type="checkbox" value="bing" checked /> MSN/Bing</label>
+      <label style="margin-left:8px;"><input type="checkbox" value="duck" checked /> DuckDuckGo</label>
+    </div>
+    <button id="btnSearch">Search</button>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    function safe(id, fn){ const el = document.getElementById(id); if (el) el.onclick = fn; }
+
+    async function me() {
+      try {
+        const r = await fetch('/api/me');
+        const j = await r.json();
+        const userNameEl = document.getElementById('userName');
+        if (userNameEl) userNameEl.innerText = j.username || 'Not logged in';
+        // show/hide logout depending on login state
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) logoutBtn.style.display = j.username ? 'inline-block' : 'none';
+      } catch (err) {
+        console.error('me failed', err);
+      }
+
+      // fetch public URL info and show link
+      try {
+        const ri = await fetch('/api/info');
+        const ji = await ri.json();
+        const live = document.getElementById('liveSite');
+        if (live) {
+          if (ji.publicUrl) {
+            live.innerHTML = `Live site: <a href="${ji.publicUrl}" target="_blank" rel="noopener noreferrer">${ji.publicUrl}</a>`;
+          } else {
+            live.innerHTML = `No public URL configured — local: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>`;
+          }
+        }
+      } catch (err) { console.error('info failed', err); }
+    }
+    me();
+
+
+
+    safe('btnLogin', async () => {
+      try {
+        const id = (document.getElementById('loginUser') || {}).value || '';
+        const password = (document.getElementById('loginPass') || {}).value || '';
+        const isEmail = id.includes('@');
+        const body = isEmail ? { email: id, password } : { username: id, password };
+        const r = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const j = await r.json();
+        alert(j.ok ? 'logged in' : (j.error || 'error'));
+        me();
+      } catch (err) { console.error(err); alert('error'); }
+    });
+
+    // open register modal
+    safe('btnRegister', async () => { try { if (window.openAuthModal) window.openAuthModal(); else alert('Open the login modal to register'); } catch(e) { console.error(e); } });
+
+    // Google sign-in
+    (async function(){ try { const cfg = await (await fetch('/api/config')).json(); if (cfg.GOOGLE_CLIENT_ID) {
+      const s = document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true; document.head.appendChild(s);
+      window.handleCredentialResponse = async (resp) => {
+        try {
+          const r = await fetch('/api/auth/google', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ credential: resp.credential }) });
+          const j = await r.json(); if (j.ok) { alert('goog logged in: '+j.username); me(); } else alert(j.error||'google login failed');
+        } catch (err) { console.error('google post', err); }
+      };
+      s.onload = function(){ google.accounts.id.initialize({ client_id: cfg.GOOGLE_CLIENT_ID, callback: handleCredentialResponse }); google.accounts.id.renderButton(document.getElementById('googleLogin'), { theme: 'outline', size: 'small' }); };
+    } } catch(e){ console.error('google init', e) } })();
+
+    safe('logoutBtn', async () => { try { await fetch('/api/auth/logout', { method: 'POST' }); me(); } catch (err) { console.error(err); } });
+
+    safe('btnSearch', async () => {
+      try {
+        const q = (document.getElementById('q') || {}).value || '';
+        const region = (document.getElementById('region') || {}).value || 'en';
+        const sources = Array.from(document.querySelectorAll('#sources input:checked')).map(i=>i.value).join(',');
+        const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}&sources=${encodeURIComponent(sources)}`);
+        const j = await r.json();
+        const out = document.getElementById('results');
+        out.innerHTML = '';
+        if (j.wikipedia && j.wikipedia.length) {
+          const h = document.createElement('h3'); h.innerText='Wikipedia'; out.appendChild(h);
+          j.wikipedia.forEach(w => {
+            const div = document.createElement('div'); div.className='result';
+            div.innerHTML = `<b>${w.title}</b><div>${w.snippet}</div><div style="margin-top:6px"><button class="viewBtn" data-link="${w.link}">View in-site</button> <a href="${w.link}" target="_blank" rel="noopener noreferrer">Open</a></div>`;
+            out.appendChild(div);
+          });
+        }
+        if (j.bing && j.bing.length) {
+          const h = document.createElement('h3'); h.innerText='Bing'; out.appendChild(h);
+          j.bing.forEach(b => {
+            const div = document.createElement('div'); div.className='result';
+            div.innerHTML = `<b>${b.title}</b><div>${b.snippet}</div><div style="margin-top:6px"><button class="viewBtn" data-link="${b.link}">View in-site</button> <a href="${b.link}" target="_blank" rel="noopener noreferrer">Open</a></div>`;
+            out.appendChild(div);
+          });
+        }
+        if (j.duck && j.duck.length) {
+          const h = document.createElement('h3'); h.innerText='DuckDuckGo'; out.appendChild(h);
+          j.duck.forEach(d => {
+            const div = document.createElement('div'); div.className='result';
+            div.innerHTML = `<b>${d.title}</b><div>${d.snippet}</div><div style="margin-top:6px"><button class="viewBtn" data-link="${d.link}">View in-site</button> <a href="${d.link}" target="_blank" rel="noopener noreferrer">Open</a></div>`;
+            out.appendChild(div);
+          });
+        }
+      } catch (err) { console.error('search error', err); alert('Search failed'); }
+    });
+
+    // open results in-site using an iframe overlay
+    document.getElementById('results').addEventListener('click', (e)=>{
+      const t = e.target; if (!t.classList || !t.classList.contains('viewBtn')) return; const link = t.getAttribute('data-link'); if (!link) return; const overlay = document.createElement('div'); overlay.className='auth-modal'; overlay.innerHTML = `<div class="box" style="width:90%;max-width:1100px;height:80vh"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><strong>Viewing</strong><button id="closeIframe">✕</button></div><iframe src="${link}" style="width:100%;height:calc(100% - 32px);border:none"></iframe></div>`; document.body.appendChild(overlay); overlay.querySelector('#closeIframe').onclick = ()=> overlay.remove(); });
+  </script>
+  <script src="/auth-modal.js"></script>
+
+  <footer style="margin-top: 40px; padding: 20px; border-top: 1px solid #ccc; text-align: center; color: #666; font-size: 14px;">
+    <p>Stworzone przez <strong>Karol Kopeć</strong> © 2026 | 6ES</p>
+    <p>Strona dostępna pod adresem: <a href="https://karolkopec.github.io/disckarol-site" target="_blank" rel="noopener noreferrer">karolkopec.github.io/disckarol-site</a></p>
+  </footer>
+</body>
+</html>

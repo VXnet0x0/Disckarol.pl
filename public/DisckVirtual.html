@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DisckVirtual — Disckarol Virtual Disk</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1>DisckVirtual — Virtual disk service</h1>
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/menu">Menu</a>
+    <a href="/service">Service</a>
+    <a href="/informations">Informations</a>
+    <a href="/DisckVirtual.pl">DisckVirtual</a>
+    <span style="flex:1"></span>
+    <div id="auth">
+      <span id="userName">Not logged in</span>
+      <button id="logoutBtn" style="display:none">Logout</button>
+    </div>
+  </nav>
+
+  <hr />
+
+  <div id="content">
+    <div id="userPanel"></div>
+
+    <div id="loginArea">
+      <h3>Login</h3>
+      <div id="loginBox">
+        <input id="loginUser" placeholder="username" />
+        <input id="loginPass" type="password" placeholder="password" />
+        <button id="btnLogin">Login</button>
+        <button id="btnRegister">Register</button>
+      </div>
+      <div id="googleLogin" style="display:inline-block;margin-left:8px"></div>
+      <div id="msLogin" style="display:inline-block;margin-left:8px"></div>
+    </div>
+
+    <div id="fileArea" style="display:none">
+      <h3>Your files</h3>
+      <input id="fileInput" type="file" multiple />
+      <button id="btnUpload">Upload</button>
+      <div id="filesList"></div>
+    </div>
+  </div>
+
+<script>
+  function safe(id, fn){ const el = document.getElementById(id); if (el) el.onclick = fn; }
+
+  async function showUser(){
+    try {
+      const u = await (await fetch('/api/user')).json();
+      const p = document.getElementById('userPanel');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const userName = document.getElementById('userName');
+      if (u && u.username) {
+        p.innerHTML = `<h3>Your account</h3><div><b>${u.displayName||u.username}</b><div>${u.email||''}</div>${u.picture?`<div><img src="${u.picture}" style="width:60px;border-radius:6px"/></div>`:''}</div>`;
+        logoutBtn.style.display='inline-block';
+        userName.innerText = u.displayName || u.username;
+        document.getElementById('fileArea').style.display = 'block';
+        document.getElementById('loginArea').style.display = 'none';
+        listFiles();
+      } else {
+        p.innerHTML = '<a href="/">Zaloguj się / Zarejestruj</a>';
+        logoutBtn.style.display='none';
+        userName.innerText = 'Not logged in';
+        document.getElementById('fileArea').style.display = 'none';
+        document.getElementById('loginArea').style.display = 'block';
+      }
+    } catch (e) { console.error(e); }
+  }
+  showUser();
+
+  safe('btnRegister', async () => { try { if (window.openAuthModal) { window.openAuthModal(); } else alert('Open the login modal to register'); } catch(e){ console.error(e); } });
+
+  safe('btnLogin', async () => {
+    try {
+      const username = (document.getElementById('loginUser') || {}).value || '';
+      const password = (document.getElementById('loginPass') || {}).value || '';
+      const r = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username, password}) });
+      const j = await r.json(); alert(j.ok ? 'logged in' : (j.error || 'error')); showUser();
+    } catch (err) { console.error(err); alert('error'); }
+  });
+
+  safe('logoutBtn', async () => { try { await fetch('/api/auth/logout', { method: 'POST' }); showUser(); } catch (err) { console.error(err); } });
+
+  // Upload
+  safe('btnUpload', async () => {
+    try {
+      const input = document.getElementById('fileInput');
+      if (!input.files || input.files.length === 0) return alert('Choose files');
+      const fd = new FormData();
+      for (const f of input.files) fd.append('files', f);
+      const r = await fetch('/api/files/upload', { method: 'POST', body: fd });
+      const j = await r.json(); if (j.ok) { alert('uploaded'); listFiles(); } else alert(j.error||'upload failed');
+    } catch (err) { console.error(err); alert('upload error'); }
+  });
+
+  async function listFiles(){
+    try {
+      const r = await fetch('/api/files');
+      const j = await r.json();
+      const out = document.getElementById('filesList'); out.innerHTML = '';
+      if (!j || !j.length) { out.innerText = 'No files yet'; return; }
+      const table = document.createElement('div');
+      j.forEach(f => {
+        const row = document.createElement('div'); row.style.marginBottom='6px';
+        row.innerHTML = `<a href="${f.url}" target="_blank" rel="noopener noreferrer">${f.filename}</a> (${Math.round((f.size||0)/1024)} KB) <button data-name="${f.filename}">Delete</button>`;
+        const btn = row.querySelector('button'); btn.onclick = async () => {
+          if (!confirm('Delete file?')) return;
+          const rr = await fetch(`/api/files/${encodeURIComponent(f.filename)}`, { method: 'DELETE' }); const jj = await rr.json(); if (jj.ok) listFiles(); else alert(jj.error||'delete failed');
+        };
+        out.appendChild(row);
+      });
+    } catch (err) { console.error(err); }
+  }
+
+  // init Google and MS sign-in
+  (async function(){
+    try {
+      const cfg = await (await fetch('/api/config')).json();
+      // Google
+      if (cfg.GOOGLE_CLIENT_ID) {
+        const s = document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true; document.head.appendChild(s);
+        window.handleCredentialResponse = async (resp) => {
+          try { const r = await fetch('/api/auth/google', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ credential: resp.credential }) }); const j = await r.json(); if (j.ok) { alert('Google logged in'); showUser(); } else alert(j.error||'google login failed'); } catch(e){ console.error('google post', e); }
+        };
+        s.onload = function(){ google.accounts.id.initialize({ client_id: cfg.GOOGLE_CLIENT_ID, callback: handleCredentialResponse }); google.accounts.id.renderButton(document.getElementById('googleLogin'), { theme: 'outline', size: 'small' }); };
+      }
+
+      // Microsoft (MSAL)
+      if (cfg.MS_CLIENT_ID) {
+        const msScript = document.createElement('script'); msScript.src = 'https://alcdn.msauth.net/browser/2.36.0/js/msal-browser.min.js'; msScript.async=true; document.head.appendChild(msScript);
+        msScript.onload = function(){
+          const msalConfig = { auth: { clientId: cfg.MS_CLIENT_ID, redirectUri: window.location.origin } };
+          const msalInstance = new msal.PublicClientApplication(msalConfig);
+          const btn = document.createElement('button'); btn.innerText='Sign in with Microsoft'; btn.onclick = async () => {
+            try {
+              const loginResp = await msalInstance.loginPopup({ scopes: ['User.Read'] });
+              const account = loginResp.account;
+              const tokenResp = await msalInstance.acquireTokenSilent({ scopes: ['User.Read'], account });
+              const access_token = tokenResp.accessToken;
+              const r = await fetch('/api/auth/microsoft', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ access_token }) });
+              const j = await r.json(); if (j.ok) { alert('Microsoft logged in'); showUser(); } else alert(j.error||'ms login failed');
+            } catch (e) {
+              console.error('ms login', e);
+              try { const popup = await msalInstance.loginPopup({ scopes: ['User.Read'] }); /* fallback */ } catch(e2){ console.error('ms fallback', e2); }
+            }
+          };
+          document.getElementById('msLogin').appendChild(btn);
+        };
+      }
+    } catch (e) { console.error('init auth', e); }
+  })();
+</script>
+<script src="/auth-modal.js"></script>
+</body>
+</html>

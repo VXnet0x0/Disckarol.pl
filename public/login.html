@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Login — DSN / Disckarol</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1>Login</h1>
+  <nav>
+    <a href="/">Home</a> — <a href="/register">Register</a>
+  </nav>
+
+  <div id="loginBox">
+    <h3>Local login</h3>
+    <input id="loginUser" placeholder="username or email" />
+    <input id="loginPass" type="password" placeholder="password" />
+    <button id="btnLogin">Login</button>
+  </div>
+
+  <div id="social">
+    <h3>Or sign in with</h3>
+    <div id="googleLogin"></div>
+    <div id="msLogin"></div>
+    <div id="ghLogin"><a href="/auth/github"><button>Sign in with GitHub</button></a></div>
+  </div>
+
+<script>
+  document.getElementById('btnLogin').onclick = async () => {
+    try {
+      const id = document.getElementById('loginUser').value || '';
+      const password = document.getElementById('loginPass').value;
+      const isEmail = id.includes('@');
+      const body = isEmail ? { email: id, password } : { username: id, password };
+      const r = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const j = await r.json(); if (j.ok) { alert('Logged in'); location.href='/'; } else alert(j.error||'login failed');
+    } catch (e) { console.error(e); alert('error'); }
+  };
+
+  (async function(){
+    try {
+      const cfg = await (await fetch('/api/config')).json();
+      if (cfg.GOOGLE_CLIENT_ID) {
+        const s = document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true; document.head.appendChild(s);
+        window.handleCredentialResponse = async (resp) => {
+          try { const r = await fetch('/api/auth/google', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ credential: resp.credential }) }); const j = await r.json(); if (j.ok) { alert('Google logged in'); location.href='/'; } else alert(j.error||'google login failed'); } catch(e){ console.error('google post', e); }
+        };
+        s.onload = function(){ google.accounts.id.initialize({ client_id: cfg.GOOGLE_CLIENT_ID, callback: handleCredentialResponse }); google.accounts.id.renderButton(document.getElementById('googleLogin'), { theme: 'outline', size: 'large' }); };
+      }
+      if (cfg.MS_CLIENT_ID) {
+        const msScript = document.createElement('script'); msScript.src = 'https://alcdn.msauth.net/browser/2.36.0/js/msal-browser.min.js'; msScript.async=true; document.head.appendChild(msScript);
+        msScript.onload = function(){
+          const msalConfig = { auth: { clientId: cfg.MS_CLIENT_ID, redirectUri: window.location.origin } };
+          const msalInstance = new msal.PublicClientApplication(msalConfig);
+          const btn = document.createElement('button'); btn.innerText='Sign in with Microsoft'; btn.onclick = async () => {
+            try {
+              const loginResp = await msalInstance.loginPopup({ scopes: ['User.Read'] });
+              const account = loginResp.account;
+              const tokenResp = await msalInstance.acquireTokenSilent({ scopes: ['User.Read'], account });
+              const access_token = tokenResp.accessToken;
+              const r = await fetch('/api/auth/microsoft', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ access_token }) });
+              const j = await r.json(); if (j.ok) { alert('Microsoft logged in'); location.href='/'; } else alert(j.error||'ms login failed');
+            } catch (e) { console.error('ms login', e); try { await msalInstance.loginPopup({ scopes: ['User.Read'] }); } catch(e2){ console.error(e2); } }
+          };
+          document.getElementById('msLogin').appendChild(btn);
+        };
+      }
+    } catch (e) { console.error('init auth', e); }
+  })();
+</script>
+<script src="/auth-modal.js"></script>
+</body>
+</html>

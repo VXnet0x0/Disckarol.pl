@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Disckarol — Home</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/menu">Menu</a>
+    <a href="/service">Service</a>
+    <a href="/informations">Informations</a>
+	<a href="/DriveYT">DriveYT</a>
+    <span style="flex:1"></span>
+    <div id="googleLogin"></div>
+  </nav>
+
+  <h1>Disckarol — Serwisy internetowe</h1>
+  <p>Witamy na stronie głównej. Poniżej lista przykładowych usług internetowych:</p>
+  <ul>
+    <li>DSN — wyszukiwarka agregująca (ten projekt)</li>
+    <li>Hosting strony statycznej</li>
+    <li>Powiadomienia SMS</li>
+    <li>Autoryzacja przez Google</li>
+  </ul>
+
+  <p>If you want to use the DSN service, go to <a href="/service.pl">Service page</a>.</p>
+
+  <div id="userPanel" style="margin-top:20px"></div>
+
+  <script>
+    (async function(){
+      try {
+        const cfg = await (await fetch('/api/config')).json();
+        if (cfg.GOOGLE_CLIENT_ID) {
+          const s = document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true; document.head.appendChild(s);
+          s.onload = ()=>{ google.accounts.id.initialize({ client_id: cfg.GOOGLE_CLIENT_ID, callback: async (resp)=>{ await fetch('/api/auth/google', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ credential: resp.credential }) }); showUser(); } }); google.accounts.id.renderButton(document.getElementById('googleLogin'), { theme: 'outline', size: 'large' }); }
+        }
+      } catch(e){ console.error('google init', e) }
+
+      async function showUser(){ try { const u = await (await fetch('/api/user')).json(); const p = document.getElementById('userPanel'); if (u && u.username) { p.innerHTML = `<h3>Twoje konto</h3><div><b>${u.displayName||u.username}</b><div>${u.email||''}</div>${u.picture?`<div><img src="${u.picture}" style="width:60px;border-radius:6px"/></div>`:''}</div><div><a href="/">Go to project</a></div>`; } else p.innerHTML = '<a href="/">Zaloguj się / Zarejestruj</a>'; } catch(e){ console.error(e) } }
+      showUser();
+    })();
+  </script>
+</body>
+</html>

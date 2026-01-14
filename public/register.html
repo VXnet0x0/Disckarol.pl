@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Register — DSN / Disckarol</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1>Register</h1>
+  <nav>
+    <a href="/">Home</a> — <a href="/login">Login</a>
+  </nav>
+
+  <div id="regBox">
+    <h3>Create local account</h3>
+    <input id="regUser" placeholder="username (email recommended)" />
+    <input id="regPass" type="password" placeholder="password" />
+    <button id="btnRegister">Register</button>
+  </div>
+
+<script>
+  document.getElementById('btnRegister').onclick = async () => {
+    try {
+      const username = document.getElementById('regUser').value;
+      const password = document.getElementById('regPass').value;
+      const r = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
+      const j = await r.json(); if (j.ok) { alert('Registered and logged in'); location.href='/'; } else alert(j.error||'registration failed');
+    } catch (e) { console.error(e); alert('error'); }
+  };
+</script>
+</body>
+</html>

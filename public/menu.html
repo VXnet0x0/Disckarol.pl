@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DSN — Menu</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/menu">Menu</a>
+    <a href="/service">Service</a>
+    <a href="/informations">Informations</a>
+    <span style="flex:1"></span>
+    <div id="googleLogin"></div>
+  </nav>
+
+  <h1>Menu</h1>
+  <div id="liveSite" style="margin-bottom:12px; font-size:14px"></div>
+  <ul>
+    <li><a href="/">Index</a></li>
+    <li><a href="/service">Service</a></li>
+    <li><a href="/informations">Informations</a></li>
+  </ul>
+  <script>
+    (async function(){ try{ const r=await fetch('/api/info'); const j=await r.json(); const el=document.getElementById('liveSite'); if(el){ if(j.publicUrl) el.innerHTML = `Live site: <a href="${j.publicUrl}" target="_blank">${j.publicUrl}</a>`; else el.innerHTML = `No public URL configured — local: <a href="http://localhost:3000">http://localhost:3000</a>` } }catch(e){console.error(e)}
+
+    try{ const cfg = await (await fetch('/api/config')).json(); if (cfg.GOOGLE_CLIENT_ID) { const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true; document.head.appendChild(s); s.onload = ()=>{ google.accounts.id.initialize({ client_id: cfg.GOOGLE_CLIENT_ID, callback: (resp)=>{ fetch('/api/auth/google', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({credential: resp.credential})}).then(r=>r.json()).then(j=>{ if (j.ok) alert('Logged in with Google: '+j.username); else alert('Google login failed'); }) } ); google.accounts.id.renderButton(document.getElementById('googleLogin'), { theme: 'outline', size: 'small' }); } } }catch(e){console.error('google init', e)}
+
+    })();
+  </script>
+  <script src="/auth-modal.js"></script>
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DSN — Informations & Forum</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #ddd; padding-bottom: 8px; }
+    .tabs button { padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px 4px 0 0; }
+    .tabs button.active { background: #007bff; color: white; border-color: #007bff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .info { padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; background: #fafafa; }
+    .info .heart { cursor: pointer; font-size: 18px; margin-right: 4px; }
+    .info .heart.liked { color: red; }
+    .info .likes { font-size: 14px; color: #666; }
+    .message-list { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9; }
+    .message { padding: 8px; border-bottom: 1px solid #eee; }
+    .message:last-child { border-bottom: none; }
+    .message .sender { font-weight: bold; color: #007bff; }
+    .message .time { font-size: 12px; color: #999; margin-left: 8px; }
+    .message .content { margin-top: 4px; }
+    .conversation-list { max-height: 300px; overflow-y: auto; }
+    .conversation { padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; cursor: pointer; background: #fff; }
+    .conversation:hover { background: #f0f0f0; }
+    .conversation.unread { border-left: 3px solid #007bff; }
+    .user-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .user-item { padding: 6px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; background: #fff; }
+    .user-item:hover { background: #007bff; color: white; }
+    .forum-post { padding: 16px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; background: #fff; }
+    .forum-post .title { font-size: 18px; font-weight: bold; color: #333; }
+    .forum-post .meta { font-size: 12px; color: #666; margin-top: 4px; }
+    .forum-post .content { margin-top: 12px; }
+    .forum-post .replies { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; }
+    .reply { padding: 8px; background: #f9f9f9; border-radius: 4px; margin-top: 8px; }
+    .reply .author { font-weight: bold; font-size: 13px; }
+    .reply .text { margin-top: 4px; }
+    .compose-box { margin-top: 16px; padding: 16px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+    .compose-box input, .compose-box textarea { width: 100%; margin-bottom: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .compose-box textarea { height: 100px; resize: vertical; }
+    .compose-box button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .compose-box button:hover { background: #0056b3; }
+  </style>
+</head>
+<body>
+  <nav id="mainNav">
+    <a href="/">Index</a>
+    <a href="/menu">Menu</a>
+    <a href="/service">Service</a>
+    <a href="/informations">Informations</a>
+    <a href="/DisckVirtual.pl">DisckVirtual</a>
+    <a href="/DriveYT.pl">DriveYT</a>
+    <span style="flex:1"></span>
+    <div id="auth">
+      <span id="userName">Not logged in</span>
+      <button id="logoutBtn" style="display:none">Logout</button>
+    </div>
+  </nav>
+
+  <h1><i class="fa-solid fa-newspaper"></i> Informations & Forum</h1>
+  <div id="liveSite" style="margin-bottom:12px; font-size:14px"></div>
+  <div id="authInfo"></div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="forum"><i class="fa-solid fa-comments"></i> Forum</button>
+    <button class="tab-btn" data-tab="messages"><i class="fa-solid fa-envelope"></i> Messages</button>
+    <button class="tab-btn" data-tab="subscriptions"><i class="fa-solid fa-bell"></i> Subscriptions</button>
+  </div>
+
+  <!-- Forum Tab -->
+  <div id="forum" class="tab-content active">
+    <div id="addBox" style="display:none">
+      <div class="compose-box">
+        <h3><i class="fa-solid fa-plus"></i> Create New Post</h3>
+        <input id="infoTitle" placeholder="Post title..." />
+        <textarea id="infoContent" placeholder="Write your post content..."></textarea>
+        <button id="btnAdd"><i class="fa-solid fa-paper-plane"></i> Post</button>
+      </div>
+    </div>
+
+    <div style="margin: 16px 0;">
+      <button id="btnShowAll" class="active"><i class="fa-solid fa-globe"></i> All Posts</button>
+      <button id="btnShowMine"><i class="fa-solid fa-user"></i> My Posts</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <!-- Messages Tab -->
+  <div id="messages" class="tab-content">
+    <div id="messagesLoginRequired" style="display:none">
+      <p><i class="fa-solid fa-lock"></i> Please <a href="/">login</a> to access messages.</p>
+    </div>
+    <div id="messagesContent" style="display:none">
+      <h3><i class="fa-solid fa-users"></i> Select User to Message</h3>
+      <div id="usersList" class="user-list"></div>
+
+      <h3><i class="fa-solid fa-inbox"></i> Your Conversations</h3>
+      <div id="conversationsList" class="conversation-list"></div>
+
+      <div id="chatArea" style="display:none; margin-top: 16px;">
+        <h3><i class="fa-solid fa-comments"></i> Chat with <span id="chatWith"></span></h3>
+        <div id="chatMessages" class="message-list"></div>
+        <div class="compose-box" style="margin-top: 12px;">
+          <textarea id="messageText" placeholder="Type your message..." style="height: 60px;"></textarea>
+          <button id="btnSendMessage"><i class="fa-solid fa-paper-plane"></i> Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subscriptions Tab -->
+  <div id="subscriptions" class="tab-content">
+    <div id="subBox" style="display:none">
+      <div class="compose-box">
+        <h3><i class="fa-solid fa-bell"></i> Subscribe for Notifications</h3>
+        <input id="phone" placeholder="Phone number (+48...)" />
+        <button id="btnSubscribe"><i class="fa-solid fa-check"></i> Subscribe</button>
+      </div>
+
+      <div class="compose-box" style="margin-top: 16px;">
+        <h3><i class="fa-solid fa-sms"></i> Send SMS to Subscribers</h3>
+        <textarea id="smsMsg" placeholder="Message to send to all subscribers..."></textarea>
+        <button id="btnSendSms"><i class="fa-solid fa-paper-plane"></i> Send SMS</button>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <h3><i class="fa-solid fa-list"></i> Subscribers</h3>
+        <div id="subscribersList"></div>
+      </div>
+    </div>
+    <div id="subLoginRequired" style="display:none">
+      <p><i class="fa-solid fa-lock"></i> Please <a href="/">login</a> to manage subscriptions.</p>
+    </div>
+  </div>
+
+  <script>
+    function safe(id, fn) { const el = document.getElementById(id); if (el) el.onclick = fn; }
+
+    let CURRENT_USER = null;
+    let CURRENT_CHAT_USER = null;
+
+    function escapeHTML(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'messages') loadMessages();
+      };
+    });
+
+    async function me() {
+      try {
+        const r = await fetch('/api/me');
+        const j = await r.json();
+        CURRENT_USER = j.username || null;
+        const authInfo = document.getElementById('authInfo');
+        const userName = document.getElementById('userName');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        if (authInfo) authInfo.innerText = CURRENT_USER ? 'Logged in: ' + CURRENT_USER : 'Not logged in';
+        if (userName) userName.innerText = CURRENT_USER || 'Not logged in';
+        if (logoutBtn) logoutBtn.style.display = CURRENT_USER ? 'inline-block' : 'none';
+        
+        if (CURRENT_USER) {
+          const addBox = document.getElementById('addBox'); if (addBox) addBox.style.display = 'block';
+          const subBox = document.getElementById('subBox'); if (subBox) subBox.style.display = 'block';
+          const subLoginRequired = document.getElementById('subLoginRequired'); if (subLoginRequired) subLoginRequired.style.display = 'none';
+          const messagesContent = document.getElementById('messagesContent'); if (messagesContent) messagesContent.style.display = 'block';
+          const messagesLoginRequired = document.getElementById('messagesLoginRequired'); if (messagesLoginRequired) messagesLoginRequired.style.display = 'none';
+        } else {
+          const addBox = document.getElementById('addBox'); if (addBox) addBox.style.display = 'none';
+          const subBox = document.getElementById('subBox'); if (subBox) subBox.style.display = 'none';
+          const subLoginRequired = document.getElementById('subLoginRequired'); if (subLoginRequired) subLoginRequired.style.display = 'block';
+          const messagesContent = document.getElementById('messagesContent'); if (messagesContent) messagesContent.style.display = 'none';
+          const messagesLoginRequired = document.getElementById('messagesLoginRequired'); if (messagesLoginRequired) messagesLoginRequired.style.display = 'block';
+        }
+      } catch (err) { console.error('me error', err); }
+    }
+    me();
+
+    safe('logoutBtn', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      me();
+      load();
+    });
+
+    // Show live site link
+    (async function() {
+      try {
+        const r = await fetch('/api/info');
+        const j = await r.json();
+        const el = document.getElementById('liveSite');
+        if (el) {
+          if (j.publicUrl) el.innerHTML = `Live site: <a href="${j.publicUrl}" target="_blank">${j.publicUrl}</a>`;
+          else el.innerHTML = `Local: <a href="http://localhost:3000">http://localhost:3000</a>`;
+        }
+      } catch (e) { console.error('info', e); }
+    })();
+
+    // Load forum posts
+    async function load(mineOnly) {
+      try {
+        const r = await fetch(mineOnly ? '/api/my-informations' : '/api/informations');
+        const list = await r.json();
+        const out = document.getElementById('list');
+        if (!out) return;
+        out.innerHTML = '';
+        
+        if (!list.length) {
+          out.innerHTML = '<p>No posts yet. Be the first to post!</p>';
+          return;
+        }
+
+        list.forEach(i => {
+          const div = document.createElement('div');
+          div.className = 'forum-post';
+
+          const titleEl = document.createElement('div');
+          titleEl.className = 'title';
+          titleEl.innerHTML = escapeHTML(i.title);
+
+          const metaEl = document.createElement('div');
+          metaEl.className = 'meta';
+          metaEl.innerHTML = `<i class="fa-solid fa-user"></i> <a href="${i.authorLink || ('/profile/' + encodeURIComponent(i.author))}">${escapeHTML(i.author)}</a>`;
+
+          const contentEl = document.createElement('div');
+          contentEl.className = 'content';
+          contentEl.innerHTML = escapeHTML(i.content);
+
+          const actionsEl = document.createElement('div');
+          actionsEl.style.marginTop = '12px';
+
+          const heart = document.createElement('span');
+          heart.className = 'heart';
+          heart.innerHTML = '<i class="fa-solid fa-heart"></i>';
+          if (i.liked) heart.classList.add('liked');
+
+          const likesEl = document.createElement('span');
+          likesEl.className = 'likes';
+          likesEl.textContent = ' ' + (i.likes || 0);
+
+          heart.onclick = async () => {
+            try {
+              const rr = await fetch(`/api/informations/${i.id}/like`, { method: 'POST' });
+              const jj = await rr.json();
+              if (jj.likes !== undefined) likesEl.textContent = ' ' + jj.likes;
+              if (jj.liked) heart.classList.add('liked');
+              else heart.classList.remove('liked');
+            } catch (err) { console.error('like failed', err); }
+          };
+
+          actionsEl.appendChild(heart);
+          actionsEl.appendChild(likesEl);
+
+          // Reply button
+          const replyBtn = document.createElement('button');
+          replyBtn.innerHTML = '<i class="fa-solid fa-reply"></i> Reply';
+          replyBtn.style.marginLeft = '16px';
+          replyBtn.onclick = () => {
+            const replyText = prompt('Enter your reply:');
+            if (replyText && replyText.trim()) {
+              addReply(i.id, replyText);
+            }
+          };
+          actionsEl.appendChild(replyBtn);
+
+          // Edit / Delete (only author)
+          if (CURRENT_USER && CURRENT_USER === i.author) {
+            const editBtn = document.createElement('button');
+            editBtn.innerHTML = '<i class="fa-solid fa-edit"></i> Edit';
+            editBtn.style.marginLeft = '8px';
+            editBtn.onclick = async () => {
+              const newTitle = prompt('New title', i.title);
+              if (newTitle === null) return;
+              const newContent = prompt('New content', i.content);
+              if (newContent === null) return;
+              try {
+                const r = await fetch(`/api/informations/${i.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ title: newTitle, content: newContent })
+                });
+                const jj = await r.json();
+                if (jj.ok) { alert('Updated'); load(); }
+                else alert(jj.error || 'error');
+              } catch (err) { console.error('update', err); alert('error'); }
+            };
+
+            const delBtn = document.createElement('button');
+            delBtn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete';
+            delBtn.style.marginLeft = '8px';
+            delBtn.onclick = async () => {
+              if (!confirm('Delete this post?')) return;
+              try {
+                const r = await fetch(`/api/informations/${i.id}`, { method: 'DELETE' });
+                const jj = await r.json();
+                if (jj.ok) { alert('Deleted'); load(); }
+                else alert(jj.error || 'error');
+              } catch (err) { console.error('delete', err); alert('error'); }
+            };
+
+            actionsEl.appendChild(editBtn);
+            actionsEl.appendChild(delBtn);
+          }
+
+          div.appendChild(titleEl);
+          div.appendChild(metaEl);
+          div.appendChild(contentEl);
+          div.appendChild(actionsEl);
+
+          // Show replies
+          if (i.replies && i.replies.length) {
+            const repliesDiv = document.createElement('div');
+            repliesDiv.className = 'replies';
+            repliesDiv.innerHTML = '<b>Replies:</b>';
+            i.replies.forEach(reply => {
+              const replyEl = document.createElement('div');
+              replyEl.className = 'reply';
+              replyEl.innerHTML = `<div class="author">${escapeHTML(reply.author)}</div><div class="text">${escapeHTML(reply.text)}</div>`;
+              repliesDiv.appendChild(replyEl);
+            });
+            div.appendChild(repliesDiv);
+          }
+
+          out.appendChild(div);
+        });
+      } catch (err) { console.error('load error', err); }
+    }
+    load();
+
+    async function addReply(postId, text) {
+      if (!CURRENT_USER) return alert('Please login to reply');
+      try {
+        const r = await fetch(`/api/informations/${postId}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const j = await r.json();
+        if (j.ok) load();
+        else alert(j.error || 'Failed to add reply');
+      } catch (err) { console.error('reply error', err); alert('Error'); }
+    }
+
+    safe('btnShowAll', async () => {
+      document.getElementById('btnShowAll').classList.add('active');
+      document.getElementById('btnShowMine').classList.remove('active');
+      load();
+    });
+
+    safe('btnShowMine', async () => {
+      document.getElementById('btnShowMine').classList.add('active');
+      document.getElementById('btnShowAll').classList.remove('active');
+      load(true);
+    });
+
+    safe('btnAdd', async () => {
+      try {
+        const title = (document.getElementById('infoTitle') || {}).value || '';
+        const content = (document.getElementById('infoContent') || {}).value || '';
+        if (!title.trim() || !content.trim()) { alert('Title and content required'); return; }
+        const r = await fetch('/api/informations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content })
+        });
+        const j = await r.json();
+        if (j.id) {
+          alert('Posted!');
+          document.getElementById('infoTitle').value = '';
+          document.getElementById('infoContent').value = '';
+          load();
+        } else alert(j.error || 'Error');
+      } catch (err) { console.error(err); alert('Error'); }
+    });
+
+    // Messages functionality
+    async function loadMessages() {
+      if (!CURRENT_USER) return;
+      await loadUsers();
+      await loadConversations();
+    }
+
+    async function loadUsers() {
+      try {
+        const r = await fetch('/api/users');
+        const users = await r.json();
+        const list = document.getElementById('usersList');
+        list.innerHTML = '';
+        users.filter(u => u.username !== CURRENT_USER).forEach(u => {
+          const item = document.createElement('div');
+          item.className = 'user-item';
+          item.innerHTML = `<i class="fa-solid fa-user"></i> ${escapeHTML(u.displayName || u.username)}`;
+          item.onclick = () => openChat(u.username, u.displayName || u.username);
+          list.appendChild(item);
+        });
+      } catch (err) { console.error('load users', err); }
+    }
+
+    async function loadConversations() {
+      try {
+        const r = await fetch('/api/messages/conversations');
+        const convs = await r.json();
+        const list = document.getElementById('conversationsList');
+        list.innerHTML = '';
+        if (!convs.length) {
+          list.innerHTML = '<p>No conversations yet. Select a user above to start chatting.</p>';
+          return;
+        }
+        convs.forEach(c => {
+          const item = document.createElement('div');
+          item.className = 'conversation' + (c.unread ? ' unread' : '');
+          item.innerHTML = `
+            <div><b>${escapeHTML(c.withUser)}</b></div>
+            <div style="font-size:13px;color:#666">${escapeHTML(c.lastMessage || 'No messages')}</div>
+          `;
+          item.onclick = () => openChat(c.withUser, c.withUser);
+          list.appendChild(item);
+        });
+      } catch (err) { console.error('load conversations', err); }
+    }
+
+    async function openChat(username, displayName) {
+      CURRENT_CHAT_USER = username;
+      document.getElementById('chatWith').textContent = displayName;
+      document.getElementById('chatArea').style.display = 'block';
+      await loadChatMessages(username);
+    }
+
+    async function loadChatMessages(username) {
+      try {
+        const r = await fetch(`/api/messages/${encodeURIComponent(username)}`);
+        const messages = await r.json();
+        const list = document.getElementById('chatMessages');
+        list.innerHTML = '';
+        if (!messages.length) {
+          list.innerHTML = '<p>No messages yet. Start the conversation!</p>';
+          return;
+        }
+        messages.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'message';
+          const isMine = m.from === CURRENT_USER;
+          div.innerHTML = `
+            <span class="sender">${isMine ? 'You' : escapeHTML(m.from)}</span>
+            <span class="time">${new Date(m.timestamp).toLocaleString()}</span>
+            <div class="content">${escapeHTML(m.text)}</div>
+          `;
+          list.appendChild(div);
+        });
+        list.scrollTop = list.scrollHeight;
+      } catch (err) { console.error('load chat', err); }
+    }
+
+    safe('btnSendMessage', async () => {
+      if (!CURRENT_CHAT_USER) return alert('Select a user first');
+      const text = document.getElementById('messageText').value;
+      if (!text.trim()) return alert('Enter a message');
+      try {
+        const r = await fetch('/api/messages/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: CURRENT_CHAT_USER, text })
+        });
+        const j = await r.json();
+        if (j.ok) {
+          document.getElementById('messageText').value = '';
+          await loadChatMessages(CURRENT_CHAT_USER);
+          await loadConversations();
+        } else alert(j.error || 'Failed to send');
+      } catch (err) { console.error('send message', err); alert('Error'); }
+    });
+
+    // Subscriptions
+    safe('btnSubscribe', async () => {
+      try {
+        const phone = (document.getElementById('phone') || {}).value || '';
+        if (!phone.trim()) { alert('Phone required'); return; }
+        const r = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const j = await r.json();
+        alert(j.ok ? (j.note === 'already' ? 'Already subscribed' : 'Subscribed!') : (j.error || 'Error'));
+      } catch (err) { console.error(err); alert('Error'); }
+    });
+
+    safe('btnSendSms', async () => {
+      try {
+        const msg = (document.getElementById('smsMsg') || {}).value || '';
+        if (!msg.trim()) { alert('Message required'); return; }
+        const r = await fetch('/api/sms/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+        const j = await r.json();
+        if (j.ok) alert('Sent to ' + j.count + ' subscribers');
+        else alert(j.error || 'Error');
+      } catch (err) { console.error(err); alert('Error'); }
+    });
+
+    // Enter key for message
+    document.getElementById('messageText').onkeypress = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('btnSendMessage').click();
+      }
+    };
+  </script>
+  <script src="/auth-modal.js"></script>
+</body>
+</html>
